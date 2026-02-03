@@ -50,6 +50,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function SettingsPage() {
   return (
@@ -57,32 +66,32 @@ export default function SettingsPage() {
       <h1 className="text-3xl font-bold">Settings</h1>
 
       <Tabs defaultValue="profile" orientation="vertical" className="gap-6">
-        <TabsList className="gap-1 p-2">
-          <TabsTrigger value="profile" className="px-4 py-2">
+        <TabsList className="gap-2 p-3">
+          <TabsTrigger value="profile" className="px-6 py-2.5">
             <User />
             Profile Details
           </TabsTrigger>
-          <TabsTrigger value="security" className="px-4 py-2">
+          <TabsTrigger value="security" className="px-6 py-2.5">
             <Shield />
             Security
           </TabsTrigger>
-          <TabsTrigger value="tags" className="px-4 py-2">
+          <TabsTrigger value="tags" className="px-6 py-2.5">
             <Tag />
             Tags
           </TabsTrigger>
-          <TabsTrigger value="users" className="px-4 py-2">
+          <TabsTrigger value="users" className="px-6 py-2.5">
             <Users />
             Users
           </TabsTrigger>
-          <TabsTrigger value="billing" className="px-4 py-2">
+          <TabsTrigger value="billing" className="px-6 py-2.5">
             <CreditCard />
             Billing & Usage
           </TabsTrigger>
-          <TabsTrigger value="api" className="px-4 py-2">
+          <TabsTrigger value="api" className="px-6 py-2.5">
             <Webhook />
             API & Webhooks
           </TabsTrigger>
-          <TabsTrigger value="summary-template" className="px-4 py-2">
+          <TabsTrigger value="summary-template" className="px-6 py-2.5">
             <FileText />
             Summary Template
           </TabsTrigger>
@@ -269,36 +278,55 @@ function SecurityTab() {
         </CardFooter>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Two-Factor Authentication</CardTitle>
-          <CardDescription>
-            Add an extra layer of security to your account.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Enable 2FA</Label>
-              <p className="text-sm text-muted-foreground">
-                Require a verification code when signing in.
-              </p>
-            </div>
-            <Switch />
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
 
+const TAG_PRESET_COLORS = [
+  "#EF4444",
+  "#F97316",
+  "#EAB308",
+  "#22C55E",
+  "#14B8A6",
+  "#3B82F6",
+  "#8B5CF6",
+  "#EC4899",
+  "#6B7280",
+  "#1D4ED8",
+];
+
 function TagsTab() {
-  const [tags] = useState([
-    { id: "1", name: "VIP", color: "default" },
-    { id: "2", name: "New Lead", color: "secondary" },
-    { id: "3", name: "Follow Up", color: "outline" },
-    { id: "4", name: "Urgent", color: "destructive" },
+  const [tags, setTags] = useState([
+    { id: "1", name: "VIP", description: "High-value customer requiring priority treatment", color: "#EAB308" },
+    { id: "2", name: "New Lead", description: "Recently acquired contact not yet qualified", color: "#3B82F6" },
+    { id: "3", name: "Follow Up", description: "Requires a follow-up call or message", color: "#22C55E" },
+    { id: "4", name: "Urgent", description: "Time-sensitive request needing immediate attention", color: "#EF4444" },
   ]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagDescription, setNewTagDescription] = useState("");
+  const [newTagColor, setNewTagColor] = useState(TAG_PRESET_COLORS[5]);
+
+  function handleAddTag() {
+    if (!newTagName.trim()) return;
+    setTags((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: newTagName.trim(),
+        description: newTagDescription.trim(),
+        color: newTagColor,
+      },
+    ]);
+    setNewTagName("");
+    setNewTagDescription("");
+    setNewTagColor(TAG_PRESET_COLORS[5]);
+    setDialogOpen(false);
+  }
+
+  function handleDeleteTag(id: string) {
+    setTags((prev) => prev.filter((t) => t.id !== id));
+  }
 
   return (
     <Card>
@@ -310,13 +338,121 @@ function TagsTab() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
-          <Input placeholder="New tag name..." className="max-w-xs" />
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Tag
-          </Button>
-        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Tag
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Tag</DialogTitle>
+              <DialogDescription>
+                Add a new tag to organize your contacts and conversations.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="tag-name">Name</Label>
+                <Input
+                  id="tag-name"
+                  placeholder="e.g. VIP, Callback, Interested"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tag-description">Description</Label>
+                <Textarea
+                  id="tag-description"
+                  placeholder="Describe when this tag should be applied..."
+                  rows={3}
+                  value={newTagDescription}
+                  onChange={(e) => setNewTagDescription(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Be specific for the AI to let them know when to use this tag.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Color</Label>
+                <div className="flex items-center gap-2">
+                  {TAG_PRESET_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-transform hover:scale-110"
+                      style={{
+                        backgroundColor: color,
+                        borderColor:
+                          newTagColor === color
+                            ? "var(--foreground)"
+                            : "transparent",
+                      }}
+                      onClick={() => setNewTagColor(color)}
+                    >
+                      {newTagColor === color && (
+                        <svg
+                          className="h-3.5 w-3.5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                  <div className="relative ml-1">
+                    <input
+                      type="color"
+                      value={newTagColor}
+                      onChange={(e) => setNewTagColor(e.target.value)}
+                      className="absolute inset-0 h-7 w-7 cursor-pointer opacity-0"
+                    />
+                    <div
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/40"
+                      style={{
+                        background: TAG_PRESET_COLORS.includes(newTagColor)
+                          ? undefined
+                          : newTagColor,
+                      }}
+                    >
+                      {TAG_PRESET_COLORS.includes(newTagColor) && (
+                        <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Preview</Label>
+                <div>
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                    style={{ backgroundColor: newTagColor }}
+                  >
+                    {newTagName || "Tag name"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddTag} disabled={!newTagName.trim()}>
+                Create Tag
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <Separator />
         <div className="space-y-2">
           {tags.map((tag) => (
@@ -324,14 +460,24 @@ function TagsTab() {
               key={tag.id}
               className="flex items-center justify-between rounded-md border px-4 py-2"
             >
-              <Badge
-                variant={
-                  tag.color as "default" | "secondary" | "outline" | "destructive"
-                }
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                  style={{ backgroundColor: tag.color }}
+                >
+                  {tag.name}
+                </span>
+                {tag.description && (
+                  <span className="text-sm text-muted-foreground">
+                    {tag.description}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleDeleteTag(tag.id)}
               >
-                {tag.name}
-              </Badge>
-              <Button variant="ghost" size="icon-sm">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
