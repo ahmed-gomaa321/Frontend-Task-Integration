@@ -489,7 +489,7 @@ function TagsTab() {
 }
 
 function UsersTab() {
-  const [users] = useState([
+  const [users, setUsers] = useState([
     {
       id: "1",
       name: "John Doe",
@@ -509,6 +509,38 @@ function UsersTab() {
       role: "Member",
     },
   ]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [department, setDepartment] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("+20");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
+
+  const resetForm = () => {
+    setFirstName("");
+    setLastName("");
+    setDepartment("");
+    setEmail("");
+    setPhone("+20");
+    setPassword("");
+    setRole("");
+  };
+
+  const handleInvite = () => {
+    setUsers((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: `${firstName} ${lastName}`,
+        email,
+        role: role.charAt(0).toUpperCase() + role.slice(1),
+      },
+    ]);
+    setDialogOpen(false);
+    resetForm();
+  };
 
   return (
     <Card>
@@ -519,10 +551,113 @@ function UsersTab() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Invite User
-        </Button>
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Invite User
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Invite User</DialogTitle>
+              <DialogDescription>
+                Add a new team member to your workspace.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="first-name">First Name</Label>
+                  <Input
+                    id="first-name"
+                    placeholder="e.g. Sarah"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last-name">Last Name</Label>
+                  <Input
+                    id="last-name"
+                    placeholder="e.g. Mostafa"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Input
+                  id="department"
+                  placeholder="e.g. Marketing"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-email">Email</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  placeholder="e.g. sarahmo@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-phone">Phone Number</Label>
+                <Input
+                  id="invite-phone"
+                  type="tel"
+                  placeholder="+20"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-password">Password</Label>
+                <Input
+                  id="invite-password"
+                  type="password"
+                  placeholder="Enter Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="user-role">User Role</Label>
+                <Select value={role} onValueChange={setRole}>
+                  <SelectTrigger id="user-role" className="w-full">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={!firstName || !lastName || !email || !password || !role}
+                onClick={handleInvite}
+              >
+                Invite User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div className="rounded-md border">
           <Table>
             <TableHeader>
