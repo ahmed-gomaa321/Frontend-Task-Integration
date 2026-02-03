@@ -16,6 +16,7 @@ import {
   Webhook,
   FileText,
   Upload,
+  KeyRound,
 } from "lucide-react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -79,6 +80,10 @@ export default function SettingsPage() {
             <Tag />
             Tags
           </TabsTrigger>
+          <TabsTrigger value="custom-keys" className="px-6 py-2.5">
+            <KeyRound />
+            Custom Keys
+          </TabsTrigger>
           <TabsTrigger value="users" className="px-6 py-2.5">
             <Users />
             Users
@@ -105,6 +110,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="tags">
           <TagsTab />
+        </TabsContent>
+        <TabsContent value="custom-keys">
+          <CustomKeysTab />
         </TabsContent>
         <TabsContent value="users">
           <UsersTab />
@@ -488,6 +496,123 @@ function TagsTab() {
   );
 }
 
+function CustomKeysTab() {
+  const [keys, setKeys] = useState([
+    { id: "1", name: "Customer ID", description: "Unique identifier for the customer in external CRM" },
+    { id: "2", name: "Plan Type", description: "The subscription plan the customer is on" },
+    { id: "3", name: "Source", description: "How the customer was acquired (e.g. referral, organic)" },
+  ]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyDescription, setNewKeyDescription] = useState("");
+
+  function handleAddKey() {
+    if (!newKeyName.trim()) return;
+    setKeys((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: newKeyName.trim(),
+        description: newKeyDescription.trim(),
+      },
+    ]);
+    setNewKeyName("");
+    setNewKeyDescription("");
+    setDialogOpen(false);
+  }
+
+  function handleDeleteKey(id: string) {
+    setKeys((prev) => prev.filter((k) => k.id !== id));
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Custom Keys</CardTitle>
+        <CardDescription>
+          Manage custom keys used across your workspace for storing additional
+          data on contacts and conversations.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Key
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Key</DialogTitle>
+              <DialogDescription>
+                Add a new custom key to store additional data.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="key-name">Name</Label>
+                <Input
+                  id="key-name"
+                  placeholder="e.g. Customer ID, Plan Type"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="key-description">Description</Label>
+                <Textarea
+                  id="key-description"
+                  placeholder="Describe what this key is used for..."
+                  rows={3}
+                  value={newKeyDescription}
+                  onChange={(e) => setNewKeyDescription(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Be specific for the AI to let them know when to use this key.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddKey} disabled={!newKeyName.trim()}>
+                Create Key
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Separator />
+        <div className="space-y-2">
+          {keys.map((key) => (
+            <div
+              key={key.id}
+              className="flex items-center justify-between rounded-md border px-4 py-2"
+            >
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary">{key.name}</Badge>
+                {key.description && (
+                  <span className="text-sm text-muted-foreground">
+                    {key.description}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleDeleteKey(key.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function UsersTab() {
   const [users, setUsers] = useState([
     {
@@ -704,9 +829,9 @@ function BillingTab() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-md border p-4">
             <div>
-              <p className="font-medium">Pro Plan</p>
+              <p className="font-medium">Free</p>
               <p className="text-sm text-muted-foreground">
-                $49/month &middot; Billed monthly
+                100 minutes &middot; 14 day trial
               </p>
             </div>
             <Button variant="outline">Change Plan</Button>
@@ -721,29 +846,11 @@ function BillingTab() {
             Your current usage for this billing period.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Contacts</span>
-              <span className="text-muted-foreground">2,450 / 10,000</span>
-            </div>
-            <div className="h-2 rounded-full bg-muted">
-              <div className="h-2 w-1/4 rounded-full bg-primary" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Messages Sent</span>
-              <span className="text-muted-foreground">8,200 / 50,000</span>
-            </div>
-            <div className="h-2 rounded-full bg-muted">
-              <div className="h-2 w-[16%] rounded-full bg-primary" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>AI Summaries</span>
-              <span className="text-muted-foreground">340 / 1,000</span>
+              <span>Minutes</span>
+              <span className="text-muted-foreground">34 / 100</span>
             </div>
             <div className="h-2 rounded-full bg-muted">
               <div className="h-2 w-[34%] rounded-full bg-primary" />
@@ -808,11 +915,11 @@ function ApiTab() {
             {[
               {
                 url: "https://example.com/webhooks/messages",
-                event: "message.received",
+                event: "All Recordings",
               },
               {
                 url: "https://example.com/webhooks/contacts",
-                event: "contact.created",
+                event: "All Recordings",
               },
             ].map((webhook) => (
               <div
