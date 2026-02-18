@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import useLanguages from "@/hooks/use-languages";
+import useVoices from "@/hooks/use-voice";
 
 interface UploadedFile {
   name: string;
@@ -216,12 +217,19 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
   const heading = mode === "create" ? "Create Agent" : "Edit Agent";
   const saveLabel = mode === "create" ? "Save Agent" : "Save Changes";
 
-  // Fetch languages from API
+  // Fetch languages
   const {
     data: languages,
     isLoading: languagesLoading,
-    error,
+    error: languagesError,
   } = useLanguages();
+
+  // Fetch voices
+  const {
+    data: voices,
+    isLoading: voicesLoading,
+    error: voicesError,
+  } = useVoices();
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -296,7 +304,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                         loading <Loader size={20} className="animate-spin" />
                       </span>
                     )}
-                    {error && <span>Error loading languages</span>}
+                    {languagesError && <span>Error loading languages</span>}
                     {!languagesLoading &&
                       languages?.map((lang) => (
                         <SelectItem key={lang.id} value={lang.id}>
@@ -316,12 +324,25 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                     <SelectValue placeholder="Select voice" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="alloy">Alloy</SelectItem>
-                    <SelectItem value="echo">Echo</SelectItem>
-                    <SelectItem value="fable">Fable</SelectItem>
-                    <SelectItem value="onyx">Onyx</SelectItem>
-                    <SelectItem value="nova">Nova</SelectItem>
-                    <SelectItem value="shimmer">Shimmer</SelectItem>
+                    {voicesLoading && (
+                      <span>
+                        loading <Loader size={20} className="animate-spin" />
+                      </span>
+                    )}
+                    {voicesError && <span>Error loading voices</span>}
+                    {!voicesLoading &&
+                      voices?.map((voice) => (
+                        <SelectItem
+                          key={voice.id}
+                          value={voice.id}
+                          className="flex justify-between items-center gap-2"
+                        >
+                          <span>{voice.name}</span>
+                          {voice.tag && (
+                            <Badge variant="secondary">{voice.tag}</Badge>
+                          )}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
