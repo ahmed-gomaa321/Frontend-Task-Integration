@@ -41,6 +41,7 @@ import {
 import useLanguages from "@/hooks/use-languages";
 import useVoices from "@/hooks/use-voice";
 import usePrompts from "@/hooks/use-prompts";
+import useModels from "@/hooks/use-model";
 
 interface UploadedFile {
   name: string;
@@ -239,6 +240,13 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
     error: promptsError,
   } = usePrompts();
 
+  // Fetch models
+  const {
+    data: models,
+    isLoading: modelsLoading,
+    error: modelsError,
+  } = useModels();
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
@@ -389,9 +397,18 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                     <SelectValue placeholder="Select model" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pro">Pro</SelectItem>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="flex">Flex</SelectItem>
+                    {modelsLoading && (
+                      <span>
+                        loading <Loader size={20} className="animate-spin" />
+                      </span>
+                    )}
+                    {modelsError && <span>Error loading models</span>}
+                    {!modelsLoading &&
+                      models?.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
