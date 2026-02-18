@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import {
-  ChevronDown,
-  Upload,
-  X,
-  FileText,
-  Phone,
-} from "lucide-react";
+import { ChevronDown, Upload, X, FileText, Phone, Loader } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -44,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import useLanguages from "@/hooks/use-languages";
 
 interface UploadedFile {
   name: string;
@@ -88,9 +83,7 @@ function CollapsibleSection({
               </div>
               <div className="flex items-center gap-2">
                 {badge !== undefined && badge > 0 && (
-                  <Badge variant="destructive">
-                    {badge} required
-                  </Badge>
+                  <Badge variant="destructive">{badge} required</Badge>
                 )}
                 <ChevronDown
                   className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
@@ -139,13 +132,17 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
   const [model, setModel] = useState(initialData?.model ?? "");
   const [latency, setLatency] = useState([initialData?.latency ?? 0.5]);
   const [speed, setSpeed] = useState([initialData?.speed ?? 110]);
-  const [description, setDescription] = useState(initialData?.description ?? "");
+  const [description, setDescription] = useState(
+    initialData?.description ?? "",
+  );
 
   // Call Script
   const [callScript, setCallScript] = useState(initialData?.callScript ?? "");
 
   // Service/Product Description
-  const [serviceDescription, setServiceDescription] = useState(initialData?.serviceDescription ?? "");
+  const [serviceDescription, setServiceDescription] = useState(
+    initialData?.serviceDescription ?? "",
+  );
 
   // Reference Data
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -159,9 +156,14 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
   const [testPhone, setTestPhone] = useState("");
 
   // Badge counts for required fields
-  const basicSettingsMissing = [agentName, callType, language, voice, prompt, model].filter(
-    (v) => !v
-  ).length;
+  const basicSettingsMissing = [
+    agentName,
+    callType,
+    language,
+    voice,
+    prompt,
+    model,
+  ].filter((v) => !v).length;
 
   // File upload handlers
   const ACCEPTED_TYPES = [
@@ -188,7 +190,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
       setUploadedFiles((prev) => [...prev, ...newFiles]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
   const removeFile = (index: number) => {
@@ -213,6 +215,13 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
 
   const heading = mode === "create" ? "Create Agent" : "Edit Agent";
   const saveLabel = mode === "create" ? "Save Agent" : "Save Changes";
+
+  // Fetch languages from API
+  const {
+    data: languages,
+    isLoading: languagesLoading,
+    error,
+  } = useLanguages();
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -239,7 +248,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                 <Input
                   id="agent-name"
                   placeholder="e.g. Sales Assistant"
-                  value={agentName}
+                  value={agentName ?? ""}
                   onChange={(e) => setAgentName(e.target.value)}
                 />
               </div>
@@ -249,7 +258,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                 <Input
                   id="description"
                   placeholder="Describe what this agent does..."
-                  value={description}
+                  value={description ?? ""}
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
@@ -258,13 +267,17 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                 <Label>
                   Call Type <span className="text-destructive">*</span>
                 </Label>
-                <Select value={callType} onValueChange={setCallType}>
+                <Select value={callType ?? ""} onValueChange={setCallType}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select call type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="inbound">Inbound (Receive Calls)</SelectItem>
-                    <SelectItem value="outbound">Outbound (Make Calls)</SelectItem>
+                    <SelectItem value="inbound">
+                      Inbound (Receive Calls)
+                    </SelectItem>
+                    <SelectItem value="outbound">
+                      Outbound (Make Calls)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -273,15 +286,23 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                 <Label>
                   Language <span className="text-destructive">*</span>
                 </Label>
-                <Select value={language} onValueChange={setLanguage}>
+                <Select value={language ?? ""} onValueChange={setLanguage}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="ar">Arabic</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
+                    {languagesLoading && (
+                      <span>
+                        loading <Loader size={20} className="animate-spin" />
+                      </span>
+                    )}
+                    {error && <span>Error loading languages</span>}
+                    {!languagesLoading &&
+                      languages?.map((lang) => (
+                        <SelectItem key={lang.id} value={lang.id}>
+                          {lang?.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -290,7 +311,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                 <Label>
                   Voice <span className="text-destructive">*</span>
                 </Label>
-                <Select value={voice} onValueChange={setVoice}>
+                <Select value={voice ?? ""} onValueChange={setVoice}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select voice" />
                   </SelectTrigger>
@@ -309,7 +330,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                 <Label>
                   Prompt <span className="text-destructive">*</span>
                 </Label>
-                <Select value={prompt} onValueChange={setPrompt}>
+                <Select value={prompt ?? ""} onValueChange={setPrompt}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select prompt" />
                   </SelectTrigger>
@@ -326,7 +347,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                 <Label>
                   Model <span className="text-destructive">*</span>
                 </Label>
-                <Select value={model} onValueChange={setModel}>
+                <Select value={model ?? ""} onValueChange={setModel}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select model" />
                   </SelectTrigger>
@@ -369,7 +390,6 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                   </div>
                 </div>
               </div>
-
             </div>
           </CollapsibleSection>
 
@@ -381,7 +401,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
             <div className="space-y-2">
               <Textarea
                 placeholder="Write your call script here..."
-                value={callScript}
+                value={callScript ?? ""}
                 onChange={(e) => setCallScript(e.target.value)}
                 rows={6}
                 maxLength={20000}
@@ -400,7 +420,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
             <div className="space-y-2">
               <Textarea
                 placeholder="Describe your service or product..."
-                value={serviceDescription}
+                value={serviceDescription ?? ""}
                 onChange={(e) => setServiceDescription(e.target.value)}
                 rows={6}
                 maxLength={20000}
@@ -498,7 +518,8 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                   <FieldContent>
                     <FieldTitle>Allow hang up</FieldTitle>
                     <FieldDescription>
-                      Select if you would like to allow the agent to hang up the call
+                      Select if you would like to allow the agent to hang up the
+                      call
                     </FieldDescription>
                   </FieldContent>
                   <Switch id="switch-hangup" />
@@ -509,7 +530,8 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                   <FieldContent>
                     <FieldTitle>Allow callback</FieldTitle>
                     <FieldDescription>
-                      Select if you would like to allow the agent to make callbacks
+                      Select if you would like to allow the agent to make
+                      callbacks
                     </FieldDescription>
                   </FieldContent>
                   <Switch id="switch-callback" />
@@ -528,7 +550,6 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
               </FieldLabel>
             </FieldGroup>
           </CollapsibleSection>
-
         </div>
 
         {/* Right Column — Sticky Test Call Card */}
@@ -553,7 +574,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       <Input
                         id="test-first-name"
                         placeholder="John"
-                        value={testFirstName}
+                        value={testFirstName ?? ""}
                         onChange={(e) => setTestFirstName(e.target.value)}
                       />
                     </div>
@@ -562,7 +583,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       <Input
                         id="test-last-name"
                         placeholder="Doe"
-                        value={testLastName}
+                        value={testLastName ?? ""}
                         onChange={(e) => setTestLastName(e.target.value)}
                       />
                     </div>
@@ -570,7 +591,10 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
 
                   <div className="space-y-2">
                     <Label>Gender</Label>
-                    <Select value={testGender} onValueChange={setTestGender}>
+                    <Select
+                      value={testGender ?? ""}
+                      onValueChange={setTestGender}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
@@ -587,7 +611,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                     </Label>
                     <PhoneInput
                       defaultCountry="EG"
-                      value={testPhone}
+                      value={testPhone ?? ""}
                       onChange={(value) => setTestPhone(value)}
                       placeholder="Enter phone number"
                     />
