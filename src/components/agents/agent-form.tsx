@@ -42,6 +42,8 @@ import useLanguages from "@/hooks/use-languages";
 import useVoices from "@/hooks/use-voice";
 import usePrompts from "@/hooks/use-prompts";
 import useModels from "@/hooks/use-model";
+import { UploadItem } from "@/lib/types/attachment";
+import { useUploadAttachment } from "@/hooks/use-upload-attachment";
 
 interface UploadedFile {
   name: string;
@@ -148,7 +150,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
   );
 
   // Reference Data
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -179,25 +181,49 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
     ".xls",
   ];
 
+  // upload attachment
+  const uploadMutation = useUploadAttachment(setUploadedFiles);
+
   const handleFiles = useCallback(
     (files: FileList | null) => {
       if (!files) return;
-      const newFiles: UploadedFile[] = [];
+
+      const newFiles: UploadItem[] = [];
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const ext = "." + file.name.split(".").pop()?.toLowerCase();
-        if (ACCEPTED_TYPES.includes(ext)) {
-          newFiles.push({ name: file.name, size: file.size, file });
-        }
+        if (!ACCEPTED_TYPES.includes(ext)) continue;
+
+        const alreadyAdded = uploadedFiles.some(
+          (f) => f.file.name === file.name && f.file.size === file.size,
+        );
+        if (alreadyAdded) continue;
+
+        const item: UploadItem = { file, progress: 0, status: "idle" };
+        newFiles.push(item);
+        uploadMutation.mutate(item);
       }
+
       setUploadedFiles((prev) => [...prev, ...newFiles]);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [uploadMutation, uploadedFiles],
   );
 
   const removeFile = (index: number) => {
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadedFiles((prev) => {
+      const updated = [...prev];
+      updated.splice(index, 1);
+      return updated;
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -534,11 +560,28 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       key={i}
                       className="flex items-center justify-between rounded-md border px-3 py-2"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="text-sm truncate">{f.name}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {formatFileSize(f.size)}
+                      <div className="flex flex-col w-full">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm truncate">
+                            {f.file.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {formatFileSize(f.file.size)}
+                          </span>
+                        </div>
+                        {f.status === "uploading" && (
+                          <div className="h-1 w-full bg-muted-foreground/20 rounded mt-1">
+                            <div
+                              className="h-1 rounded bg-primary transition-all"
+                              style={{ width: `${f.progress}%` }}
+                            />
+                          </div>
+                        )}
+                        <span className="text-xs mt-1">
+                          {f.status === "uploading" && "Uploading..."}
+                          {f.status === "success" && "Uploaded"}
+                          {f.status === "error" && "Error"}
                         </span>
                       </div>
                       <Button
