@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ChevronDown, Upload, X, FileText, Phone, Loader } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -420,6 +420,18 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
       toast.error("Something went wrong with the test call.");
     }
   };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (Object.keys(errors).length > 0 || uploadedFiles.length > 0) {
+        e.preventDefault();
+        return "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [errors, uploadedFiles]);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
