@@ -44,6 +44,8 @@ import usePrompts from "@/hooks/use-prompts";
 import useModels from "@/hooks/use-model";
 import { UploadItem } from "@/lib/types/attachment";
 import { useUploadAttachment } from "@/hooks/use-upload-attachment";
+import { useUpsertAgent } from "@/hooks/use-upsert-agent";
+import FieldError from "../field-error";
 
 interface UploadedFile {
   name: string;
@@ -110,6 +112,7 @@ function CollapsibleSection({
 
 export interface AgentFormInitialData {
   agentName?: string;
+  id?: string;
   description?: string;
   callType?: string;
   language?: string;
@@ -130,6 +133,9 @@ interface AgentFormProps {
 export function AgentForm({ mode, initialData }: AgentFormProps) {
   // Form state — initialized from initialData when provided
   const [agentName, setAgentName] = useState(initialData?.agentName ?? "");
+  const [agentId, setAgentId] = useState<string | null>(
+    mode === "edit" ? (initialData?.id ?? null) : null,
+  );
   const [callType, setCallType] = useState(initialData?.callType ?? "");
   const [language, setLanguage] = useState(initialData?.language ?? "");
   const [voice, setVoice] = useState(initialData?.voice ?? "");
@@ -154,11 +160,19 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // tools
+  const [allowHangUp, setAllowHangUp] = useState(false);
+  const [allowCallback, setAllowCallback] = useState(false);
+  const [liveTransfer, setLiveTransfer] = useState(false);
+
   // Test Call
   const [testFirstName, setTestFirstName] = useState("");
   const [testLastName, setTestLastName] = useState("");
   const [testGender, setTestGender] = useState("");
   const [testPhone, setTestPhone] = useState("");
+
+  // errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Badge counts for required fields
   const basicSettingsMissing = [
@@ -242,9 +256,6 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
     handleFiles(e.dataTransfer.files);
   };
 
-  const heading = mode === "create" ? "Create Agent" : "Edit Agent";
-  const saveLabel = mode === "create" ? "Save Agent" : "Save Changes";
-
   // Fetch languages
   const {
     data: languages,
@@ -273,11 +284,87 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
     error: modelsError,
   } = useModels();
 
+  const heading = mode === "create" ? "Create Agent" : "Edit Agent";
+  const saveLabel = mode === "create" ? "Save Agent" : "Save Changes";
+
+  // save agent
+  const { mutate: saveAgent, isPending: isSaving } = useUpsertAgent(
+    agentId,
+    setAgentId,
+  );
+
+  // validation form
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    // basic settings
+    if (!agentName.trim()) newErrors.agentName = "Agent name is required";
+    if (!callType) newErrors.callType = "Call type is required";
+    if (!language) newErrors.language = "Language is required";
+    if (!voice) newErrors.voice = "Voice is required";
+    if (!prompt) newErrors.prompt = "Prompt is required";
+    if (!model) newErrors.model = "Model is required";
+    // test call
+    if (!testFirstName.trim())
+      newErrors.testFirstName = "First name is required";
+    if (!testLastName.trim()) newErrors.testLastName = "Last name is required";
+    if (!testGender) newErrors.testGender = "Gender is required";
+    if (!testPhone.trim()) {
+      newErrors.testPhone = "Phone number is required";
+    } else if (!/^\+?\d{10,15}$/.test(testPhone)) {
+      newErrors.testPhone = "Enter a valid phone number";
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // handle save agent
+  const handleSaveAgent = () => {
+    if (!validateForm()) return;
+
+    const payload = {
+      name: agentName,
+      description,
+      callType,
+      language,
+      voice,
+      prompt,
+      model,
+      latency: latency[0],
+      speed: speed[0],
+      callScript,
+      serviceDescription,
+      attachments: uploadedFiles
+        .filter(
+          (f): f is UploadItem & { attachmentId: string } =>
+            f.status === "success" && !!f.attachmentId,
+        )
+        .map((f) => f.attachmentId),
+      tools: {
+        allowHangUp,
+        allowCallback,
+        liveTransfer,
+      },
+    };
+
+    saveAgent(payload);
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{heading}</h1>
-        <Button>{saveLabel}</Button>
+        <Button onClick={handleSaveAgent} disabled={isSaving}>
+          {isSaving ? (
+            <span className="flex items-center gap-1">
+              Saving <Loader size={20} className="animate-spin" />
+            </span>
+          ) : (
+            saveLabel
+          )}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -301,6 +388,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                   value={agentName ?? ""}
                   onChange={(e) => setAgentName(e.target.value)}
                 />
+                <FieldError message={errors.agentName} />
               </div>
 
               <div className="space-y-2">
@@ -330,6 +418,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+                <FieldError message={errors.callType} />
               </div>
 
               <div className="space-y-2">
@@ -355,6 +444,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       ))}
                   </SelectContent>
                 </Select>
+                <FieldError message={errors.language} />
               </div>
 
               <div className="space-y-2">
@@ -387,6 +477,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       ))}
                   </SelectContent>
                 </Select>
+                <FieldError message={errors.voice} />
               </div>
 
               <div className="space-y-2">
@@ -412,6 +503,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       ))}
                   </SelectContent>
                 </Select>
+                <FieldError message={errors.prompt} />
               </div>
 
               <div className="space-y-2">
@@ -437,6 +529,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       ))}
                   </SelectContent>
                 </Select>
+                <FieldError message={errors.model} />
               </div>
 
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -538,7 +631,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                 />
                 <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
                 <p className="mt-2 text-sm font-medium">
-                  Drag & drop files here, or{" "}
+                  Drag & drop files here, or
                   <button
                     type="button"
                     className="text-primary underline"
@@ -619,7 +712,11 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       call
                     </FieldDescription>
                   </FieldContent>
-                  <Switch id="switch-hangup" />
+                  <Switch
+                    id="switch-hangup"
+                    checked={allowHangUp}
+                    onCheckedChange={setAllowHangUp}
+                  />
                 </Field>
               </FieldLabel>
               <FieldLabel htmlFor="switch-callback">
@@ -631,7 +728,11 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       callbacks
                     </FieldDescription>
                   </FieldContent>
-                  <Switch id="switch-callback" />
+                  <Switch
+                    id="switch-callback"
+                    checked={allowCallback}
+                    onCheckedChange={setAllowCallback}
+                  />
                 </Field>
               </FieldLabel>
               <FieldLabel htmlFor="switch-transfer">
@@ -642,7 +743,11 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       Select if you want to transfer the call to a human agent
                     </FieldDescription>
                   </FieldContent>
-                  <Switch id="switch-transfer" />
+                  <Switch
+                    id="switch-transfer"
+                    checked={liveTransfer}
+                    onCheckedChange={setLiveTransfer}
+                  />
                 </Field>
               </FieldLabel>
             </FieldGroup>
@@ -674,6 +779,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                         value={testFirstName ?? ""}
                         onChange={(e) => setTestFirstName(e.target.value)}
                       />
+                      <FieldError message={errors.testFirstName} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="test-last-name">Last Name</Label>
@@ -683,6 +789,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                         value={testLastName ?? ""}
                         onChange={(e) => setTestLastName(e.target.value)}
                       />
+                      <FieldError message={errors.testLastName} />
                     </div>
                   </div>
 
@@ -700,6 +807,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                         <SelectItem value="female">Female</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FieldError message={errors.testGender} />
                   </div>
 
                   <div className="space-y-2">
@@ -712,6 +820,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                       onChange={(value) => setTestPhone(value)}
                       placeholder="Enter phone number"
                     />
+                    <FieldError message={errors.testPhone} />
                   </div>
 
                   <Button className="w-full">
@@ -728,7 +837,15 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
       {/* Sticky bottom save bar */}
       <div className="sticky bottom-0 -mx-6 -mb-6 border-t bg-background px-6 py-4">
         <div className="flex justify-end">
-          <Button>{saveLabel}</Button>
+          <Button onClick={handleSaveAgent} disabled={isSaving}>
+            {isSaving ? (
+              <span className="flex items-center gap-1">
+                Saving <Loader size={20} className="animate-spin" />
+              </span>
+            ) : (
+              saveLabel
+            )}
+          </Button>
         </div>
       </div>
     </div>
