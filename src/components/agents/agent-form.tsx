@@ -46,6 +46,9 @@ import { UploadItem } from "@/lib/types/attachment";
 import { useUploadAttachment } from "@/hooks/use-upload-attachment";
 import { useUpsertAgent } from "@/hooks/use-upsert-agent";
 import FieldError from "../field-error";
+import { toast } from "sonner";
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 interface UploadedFile {
   name: string;
@@ -170,6 +173,9 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
   const [testLastName, setTestLastName] = useState("");
   const [testGender, setTestGender] = useState("");
   const [testPhone, setTestPhone] = useState("");
+  const [callStatus, setCallStatus] = useState<
+    "idle" | "calling" | "success" | "error"
+  >("idle");
 
   // errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -288,7 +294,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
   const saveLabel = mode === "create" ? "Save Agent" : "Save Changes";
 
   // save agent
-  const { mutate: saveAgent, isPending: isSaving } = useUpsertAgent(
+  const { mutateAsync: saveAgent, isPending: isSaving } = useUpsertAgent(
     agentId,
     setAgentId,
   );
@@ -352,6 +358,69 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
     saveAgent(payload);
   };
 
+  // handle start test call
+  const handleTestCall = async () => {
+    try {
+      // validation
+      if (!validateForm()) return;
+
+      // start call
+      setCallStatus("calling");
+
+      // auto save (post or put)
+      const payload = {
+        name: agentName,
+        description,
+        callType,
+        language,
+        voice,
+        prompt,
+        model,
+        latency: latency[0],
+        speed: speed[0],
+        callScript,
+        serviceDescription,
+        attachments: uploadedFiles
+          .filter(
+            (f): f is UploadItem & { attachmentId: string } =>
+              f.status === "success" && !!f.attachmentId,
+          )
+          .map((f) => f.attachmentId),
+        tools: {
+          allowHangUp,
+          allowCallback,
+          liveTransfer,
+        },
+      };
+
+      const saveResponse = await saveAgent(payload);
+
+      // Call test call API
+      const testCallResponse = await fetch(
+        `${BASE_URL}/agents/${saveResponse.id}/test-call`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: testFirstName,
+            lastName: testLastName,
+            gender: testGender,
+            phone: testPhone,
+          }),
+        },
+      );
+
+      const testCallResult = await testCallResponse.json();
+
+      // Show call status to the user
+      setCallStatus("success");
+      toast.success(`Test call status: ${testCallResult.status}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong with the test call.");
+    }
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
@@ -383,6 +452,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                   Agent Name <span className="text-destructive">*</span>
                 </Label>
                 <Input
+                  type="text"
                   id="agent-name"
                   placeholder="e.g. Sales Assistant"
                   value={agentName ?? ""}
@@ -394,6 +464,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Input
+                  type="text"
                   id="description"
                   placeholder="Describe what this agent does..."
                   value={description ?? ""}
@@ -774,6 +845,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                     <div className="space-y-2">
                       <Label htmlFor="test-first-name">First Name</Label>
                       <Input
+                        type="text"
                         id="test-first-name"
                         placeholder="John"
                         value={testFirstName ?? ""}
@@ -784,6 +856,7 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                     <div className="space-y-2">
                       <Label htmlFor="test-last-name">Last Name</Label>
                       <Input
+                        type="text"
                         id="test-last-name"
                         placeholder="Doe"
                         value={testLastName ?? ""}
@@ -823,9 +896,20 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                     <FieldError message={errors.testPhone} />
                   </div>
 
-                  <Button className="w-full">
+                  <Button
+                    disabled={isSaving}
+                    className="w-full"
+                    onClick={handleTestCall}
+                  >
                     <Phone className="mr-2 h-4 w-4" />
-                    Start Test Call
+                    {callStatus === "idle" && "Start Test Call"}
+                    {callStatus === "calling" && (
+                      <span className="flex items-center gap-1">
+                        calling <Loader size={20} className="animate-spin" />
+                      </span>
+                    )}
+                    {callStatus === "success" && "Call Successful"}
+                    {callStatus === "error" && "Call Failed"}
                   </Button>
                 </div>
               </CardContent>
