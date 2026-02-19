@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import useLanguages from "@/hooks/use-languages";
 import useVoices from "@/hooks/use-voice";
+import usePrompts from "@/hooks/use-prompts";
 
 interface UploadedFile {
   name: string;
@@ -231,6 +232,13 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
     error: voicesError,
   } = useVoices();
 
+  // Fetch prompts
+  const {
+    data: prompts,
+    isLoading: promptsLoading,
+    error: promptsError,
+  } = usePrompts();
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
@@ -356,10 +364,18 @@ export function AgentForm({ mode, initialData }: AgentFormProps) {
                     <SelectValue placeholder="Select prompt" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Default Prompt</SelectItem>
-                    <SelectItem value="sales">Sales Prompt</SelectItem>
-                    <SelectItem value="support">Support Prompt</SelectItem>
-                    <SelectItem value="custom">Custom Prompt</SelectItem>
+                    {promptsLoading && (
+                      <span>
+                        loading <Loader size={20} className="animate-spin" />
+                      </span>
+                    )}
+                    {promptsError && <span>Error loading prompts</span>}
+                    {!promptsLoading &&
+                      prompts?.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
